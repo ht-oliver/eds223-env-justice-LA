@@ -1,7 +1,7 @@
 #### Title
 
 #### Purpose:
-  Purpose of Repo
+  The purpose of this repo is to explore the lingering effects of historical redlining in LA County. 
   
   
 #### Contents

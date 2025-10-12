@@ -32,7 +32,6 @@ ejscreen <- st_read(here::here('data/ejscreen/EJSCREEN_2023_BG_StatePct_with_AS_
 holc <- st_read(here::here('data/mapping-inequality/mapping-inequality-los-angeles.json')) %>% 
   st_transform(crs = st_crs(ejscreen)) # Transform CRS
   
-
 # Biodiversity observations
 birds <- st_read(here::here('data/gbif-birds-LA/gbif-birds-LA.shp')) %>% 
   st_transform(crs = st_crs(ejscreen)) # Transform CRS
@@ -40,9 +39,19 @@ birds <- st_read(here::here('data/gbif-birds-LA/gbif-birds-LA.shp')) %>%
 ```
 
 
-
+## Historical Redlining Neighborhoods Map
 ```{r}
+map1 <-
+  tm_shape(holc) +
+    tm_polygons(fill = 'grade',
+                palette = c(
+                  "A" = "lightblue",
+                  "B" = "lightgreen",
+                  "C" = "#FFFF66",
+                  "D" = "#FA2A55"))
 
+map1
+  
 
 ```
 
