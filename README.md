@@ -1,2 +1,35 @@
-# eds223-env-justice-LA
-Mapping practice exploring environmental justice in LA County
+#### Title
+
+#### Purpose:
+  Purpose of Repo
+  
+  
+#### Contents
+
+EDS223-HW2
+│   README.md
+│   HW2.qmd
+│   Rmd/Proj files    
+│
+└───.gitignore
+     └───data
+         └───ejscreen
+         └───gbif-birds-LA
+         └───mapping-inequality
+
+
+
+#### Data Access
+
+
+
+#### Installations
+
+
+#### Demonstration
+
+
+#### Authors
+
+
+#### References
