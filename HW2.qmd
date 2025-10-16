@@ -20,22 +20,29 @@ library(tmap)
 library(stars)
 library(sf)
 library(spData)
+library(janitor)
+library(knitr)
 
 
 # Read in data
 # EJScreen - Census
 ejscreen <- st_read(here::here('data/ejscreen/EJSCREEN_2023_BG_StatePct_with_AS_CNMI_GU_VI.gdb')) %>% 
+  clean_names() %>% 
   # Filter to LA County
-  filter((ST_ABBREV == 'CA') & (CNTY_NAME == 'Los Angeles County'))
+  filter((st_abbrev == 'CA') & (cnty_name == 'Los Angeles County')) %>%
+  select(shape_length, shape_area, Shape, id,
+st_abbrev, cnty_name, region, acstotpop, lowincome, pm25)
   
 # HOLC Redlining
 holc <- st_read(here::here('data/mapping-inequality/mapping-inequality-los-angeles.json')) %>% 
-  st_transform(crs = st_crs(ejscreen)) # Transform CRS
+  st_transform(crs = st_crs(ejscreen)) %>% # Transform CRS
+  clean_names()
   
 # Biodiversity observations
 birds <- st_read(here::here('data/gbif-birds-LA/gbif-birds-LA.shp')) %>% 
-  st_transform(crs = st_crs(ejscreen)) # Transform CRS
-
+  st_transform(crs = st_crs(ejscreen)) %>%  # Transform CRS
+  clean_names()
+  
 ```
 
 
@@ -48,22 +55,45 @@ map1 <-
                   "A" = "lightblue",
                   "B" = "lightgreen",
                   "C" = "#FFFF66",
-                  "D" = "#FA2A55"))
+                  "D" = "#FA2A55")) +
+  tm_title(text = "HOLC Grades in LA County",
+            frame = FALSE)
 
 map1
   
 
 ```
 
-
+2) Create a table summarizing
+- the percentage of census block groups that fall within each HOLC grade
 
 ```{r}
+# Join ejscreen and holc by Shape (ejscreen) and geometry (holc)
+joined = st_join(ejscreen, holc) %>%
+  st_drop_geometry()
 
+# Get the count of each grade / total census blocks
+pct_A <- (sum(joined$grade == 'A', na.rm = TRUE) / nrow(joined)) * 100
+pct_B <- (sum(joined$grade == 'B', na.rm = TRUE) / nrow(joined)) * 100
+pct_C <- (sum(joined$grade == 'C', na.rm = TRUE) / nrow(joined)) * 100
+pct_D <- (sum(joined$grade == 'D', na.rm = TRUE) / nrow(joined)) * 100
+pct_na <- (sum(is.na(joined$grade)) / nrow(joined)) * 100
 
+pct_df <- data.frame(grade = c('A', 'B', 'C', 'D', 'No Grade'),
+                     percentage = c(pct_A, pct_B, pct_C, pct_D, pct_na))
+
+pct_table <- kable(pct_df, col.names = c("Grade", "Percentage"), caption = "HOLC Grade Percentages in LA County")
+
+pct_table
 ```
 
 
 
+3) Create at least two visualizations summarizing current conditions (from the EJScreen data) within HOLC grades using the mean of the following variables (you may combine variables or create separate plots)
+
+- % Low income
+- percentile for pm25
+- percentile for low life expectancy
 ```{r}
 
 
