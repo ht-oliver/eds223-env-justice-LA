@@ -22,6 +22,7 @@ library(sf)
 library(spData)
 library(janitor)
 library(knitr)
+library(ggpubr)
 
 
 # Read in data
@@ -31,7 +32,7 @@ ejscreen <- st_read(here::here('data/ejscreen/EJSCREEN_2023_BG_StatePct_with_AS_
   # Filter to LA County
   filter((st_abbrev == 'CA') & (cnty_name == 'Los Angeles County')) %>%
   select(shape_length, shape_area, Shape, id,
-st_abbrev, cnty_name, region, acstotpop, lowincome, pm25)
+st_abbrev, cnty_name, region, acstotpop, lowincome, p_pm25, p_lifeexppct)
   
 # HOLC Redlining
 holc <- st_read(here::here('data/mapping-inequality/mapping-inequality-los-angeles.json')) %>% 
@@ -49,6 +50,7 @@ birds <- st_read(here::here('data/gbif-birds-LA/gbif-birds-LA.shp')) %>%
 ## Historical Redlining Neighborhoods Map
 ```{r}
 map1 <-
+  tm_basemap(server = "https://tile.openstreetmap.org/{z}/{x}/{y}.png", alpha = 0.7) +
   tm_shape(holc) +
     tm_polygons(fill = 'grade',
                 palette = c(
@@ -95,10 +97,45 @@ pct_table
 - percentile for pm25
 - percentile for low life expectancy
 ```{r}
+low_income <- joined %>% 
+  group_by(grade) %>% #Group by grade
+  summarize(low_inc_sum = sum(lowincome)) %>% #Get the sum of lowincome per grade, create object
+  ungroup() %>% #Ungroup so we can access the total sum of lowincome
+  #Add a column that uses sum per grade and total sum to yield a percent
+  mutate(low_inc_pct = (low_inc_sum/sum(joined$lowincome)) *100) 
+  
+
+plot1 <- ggplot(low_income, aes(x = grade, y = low_inc_pct)) +
+  geom_bar(stat = 'identity', fill = '#CE5425') +
+  labs(title = "Percentage of Low Income Homes by HOLC Grade, LA County",
+       x = "HOLC Grade",
+       y = "% Homes that are Low Income") +
+  theme_light()
+
+pct_pm25 <- joined %>% 
+  group_by(grade) %>% #Group by grade
+  summarize(pm25 = mean(p_pm25))
+
+plot2 <- ggplot(pct_pm25, aes(x = grade, y = pm25)) +
+  geom_bar(stat = 'identity', fill = '#5E899E') +
+  labs(title = "Mean Percentile PM25 by HOLC Grade", x = "HOLC Grade",
+       y = "Mean Percentile PM25") +
+  theme_light()
+ 
+
+
+
+ggarrange(plot1, plot2, ncol = 2, nrow = 1)
 
 
 
 ```
 
 
+```{r}
+ejscreen_raw <- st_read(here::here('data/ejscreen/EJSCREEN_2023_BG_StatePct_with_AS_CNMI_GU_VI.gdb')) %>% 
+  clean_names() %>% 
+  # Filter to LA County
+  filter((st_abbrev == 'CA') & (cnty_name == 'Los Angeles County'))
+```
 
