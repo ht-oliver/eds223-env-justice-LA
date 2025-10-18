@@ -2,6 +2,8 @@
 title: "Exploring Environmental Justice in LA"
 author: Henry Oliver
 format: html
+warning: FALSE
+message: FALSE
 ---
 
 #### Background
@@ -11,7 +13,7 @@ Present-day environmental justice may reflect legacies of injustice in the past.
 A recent study found that redlining has not only affected the environments communities are exposed to, it has also shaped our observations of biodiversity.4 Community or citizen science, whereby individuals share observations of species, is generating an enormous volume of data. Ellis-Soto and co-authors found that redlined neighborhoods remain the most undersampled areas across 195 US cities. This gap is highly concerning, because conservation decisions are made based on these data.
 
 
-## Prepare environment
+## 1) Prepare environment
 ```{r}
 # Load library
 library(tidyverse)
@@ -23,6 +25,7 @@ library(spData)
 library(janitor)
 library(knitr)
 library(ggpubr)
+library(ggthemes)
 
 
 # Read in data
@@ -32,7 +35,7 @@ ejscreen <- st_read(here::here('data/ejscreen/EJSCREEN_2023_BG_StatePct_with_AS_
   # Filter to LA County
   filter((st_abbrev == 'CA') & (cnty_name == 'Los Angeles County')) %>%
   select(shape_length, shape_area, Shape, id,
-st_abbrev, cnty_name, region, acstotpop, lowincome, p_pm25, p_lifeexppct)
+st_abbrev, cnty_name, region, acstotpop, lowincome, p_pm25, p_lifeexppct, p_lowincpct)
   
 # HOLC Redlining
 holc <- st_read(here::here('data/mapping-inequality/mapping-inequality-los-angeles.json')) %>% 
@@ -40,34 +43,36 @@ holc <- st_read(here::here('data/mapping-inequality/mapping-inequality-los-angel
   clean_names()
   
 # Biodiversity observations
-birds <- st_read(here::here('data/gbif-birds-LA/gbif-birds-LA.shp')) %>% 
+birds <- st_read(here::here('data/gbif-birds-LA')) %>% 
   st_transform(crs = st_crs(ejscreen)) %>%  # Transform CRS
   clean_names()
+
   
 ```
 
 
-## Historical Redlining Neighborhoods Map
+## 2) Historical Redlining Neighborhoods Map
 ```{r}
 map1 <-
   tm_basemap(server = "https://tile.openstreetmap.org/{z}/{x}/{y}.png", alpha = 0.7) +
   tm_shape(holc) +
     tm_polygons(fill = 'grade',
                 palette = c(
-                  "A" = "lightblue",
-                  "B" = "lightgreen",
+                  "A" = "lightgreen",
+                  "B" = "lightblue",
                   "C" = "#FFFF66",
                   "D" = "#FA2A55")) +
   tm_title(text = "HOLC Grades in LA County",
-            frame = FALSE)
+            frame = FALSE) +
+  tm_scale_bar(position = c(0,0.1)) +
+  tm_compass()
 
 map1
   
 
 ```
 
-2) Create a table summarizing
-- the percentage of census block groups that fall within each HOLC grade
+3) HOLC Grade Summary Table
 
 ```{r}
 # Join ejscreen and holc by Shape (ejscreen) and geometry (holc)
@@ -81,61 +86,118 @@ pct_C <- (sum(joined$grade == 'C', na.rm = TRUE) / nrow(joined)) * 100
 pct_D <- (sum(joined$grade == 'D', na.rm = TRUE) / nrow(joined)) * 100
 pct_na <- (sum(is.na(joined$grade)) / nrow(joined)) * 100
 
+counts <- joined %>% 
+  group_by(grade) %>% 
+  summarize(tbl_counts = sum(lowincome))
+
 pct_df <- data.frame(grade = c('A', 'B', 'C', 'D', 'No Grade'),
+                     count = counts$tbl_counts,
                      percentage = c(pct_A, pct_B, pct_C, pct_D, pct_na))
 
-pct_table <- kable(pct_df, col.names = c("Grade", "Percentage"), caption = "HOLC Grade Percentages in LA County")
+pct_table <- kable(pct_df, col.names = c("Grade", "Count", "Percentage"), caption = "HOLC Grade Percentages in LA County")
 
 pct_table
 ```
 
 
 
-3) Create at least two visualizations summarizing current conditions (from the EJScreen data) within HOLC grades using the mean of the following variables (you may combine variables or create separate plots)
+4) Summary of low income, air quality, and low life expectancy by HOLC Grade
 
-- % Low income
-- percentile for pm25
-- percentile for low life expectancy
 ```{r}
+# Low income housing
 low_income <- joined %>% 
   group_by(grade) %>% #Group by grade
-  summarize(low_inc_sum = sum(lowincome)) %>% #Get the sum of lowincome per grade, create object
-  ungroup() %>% #Ungroup so we can access the total sum of lowincome
-  #Add a column that uses sum per grade and total sum to yield a percent
-  mutate(low_inc_pct = (low_inc_sum/sum(joined$lowincome)) *100) 
+  summarize(low_inc_mean = mean(p_lowincpct)) #Get the mean of percentile low income per grade
+   
   
-
-plot1 <- ggplot(low_income, aes(x = grade, y = low_inc_pct)) +
-  geom_bar(stat = 'identity', fill = '#CE5425') +
-  labs(title = "Percentage of Low Income Homes by HOLC Grade, LA County",
+plot1 <- ggplot(low_income, aes(x = grade, y = low_inc_mean)) +
+  geom_bar(stat = 'identity', fill = '#CE5425') + #stat = 'identity' tells ggplot that the y values are actual data values, not just counts
+  labs(title = "% Low Income",
        x = "HOLC Grade",
-       y = "% Homes that are Low Income") +
-  theme_light()
+       y = "Mean Percentile Low Income",
+       caption = "Fig. 1") +
+  theme_clean() +
+  theme(plot.caption = element_text(hjust = 0)) # Move caption to the left
 
+#Air quality (pm25)
 pct_pm25 <- joined %>% 
   group_by(grade) %>% #Group by grade
-  summarize(pm25 = mean(p_pm25))
+  summarize(pm25 = mean(p_pm25, na.rm=TRUE))
 
 plot2 <- ggplot(pct_pm25, aes(x = grade, y = pm25)) +
   geom_bar(stat = 'identity', fill = '#5E899E') +
-  labs(title = "Mean Percentile PM25 by HOLC Grade", x = "HOLC Grade",
-       y = "Mean Percentile PM25") +
-  theme_light()
+  labs(title = "% PM25", x = "HOLC Grade",
+       y = "Mean Percentile PM25",
+       caption = "Fig. 2") +
+  theme_clean() +
+  theme(plot.caption = element_text(hjust = 0))
  
+# Life expectancy
+life_exp <- joined %>% 
+  group_by(grade) %>% 
+  summarize(lle = mean(p_lifeexppct, na.rm=TRUE))
+
+plot3 <- ggplot(life_exp, aes(x = grade, y = lle)) +
+  geom_bar(stat = 'identity', fill = '#4b7a47') +
+  labs(title = "% Low Life Expectancy", x = "HOLC Grade",
+       y = "Mean Percentile Low Life Expectancy",
+       caption = "Fig. 3") +
+  theme_clean() +
+  theme(plot.caption = element_text(hjust = 0))
 
 
-
-ggarrange(plot1, plot2, ncol = 2, nrow = 1)
+annotate_figure(ggarrange(plot1, plot2, plot3, ncol = 3, nrow = 1),
+          top = text_grob('Environmental Justice by HOLC Grades, 2021-2023'))
 
 
 
 ```
 
+## 5) Interpretation
 
+  The figures above display analysis for three key metrics of quality of life as they correspond to redlining districts in LA County. Fig. 1 displays the mean percentile of low income homes found in each LA County census block. "Low income" is defined to be homes which have income equal to or less than twice the federal poverty level (USEPA). Fig. 2 displays the mean percentile of homes per census block that were found to have airborne particles of size 2.5 micrometers or smaller (PM25), a direct indicator of air quality. Fig. 3 displays the mean percentile of individuals with lower than average national life expectancy per census block. For all three metrics, we see that lower HOLC grades ('A' being the highest, and 'D' being the lowest) are associated with higher poverty, higher air pollution, and higher mortality. This pattern supports the argument that when the Home Owners' Loan Corporation (HOLC) classified neighborhoods by investment risk in the 1930s, it effectively established a housing value hierarchy -- boosting property values in higher quality-of-life areas while devaluing those in lower quality-of-life, often low-income, communities. The fact that these patterns are easily visible nearly a century after redlining took place shows the long-lasting and still-present impact of classist policies in the early 20th century.
+
+
+## 6) Biodiversity and Redlining
+
+1) Create a figure summarizing the percent of observations within redlined neighborhood within each HOLC grade.
 ```{r}
-ejscreen_raw <- st_read(here::here('data/ejscreen/EJSCREEN_2023_BG_StatePct_with_AS_CNMI_GU_VI.gdb')) %>% 
-  clean_names() %>% 
-  # Filter to LA County
-  filter((st_abbrev == 'CA') & (cnty_name == 'Los Angeles County'))
+# Check geometry type for birds
+print(paste("Geometry type for birds is", unique(st_geometry_type(birds))))
+
+# Confirm CRS matches
+if (st_crs(holc) == st_crs(birds)) {
+  print("CRS for birds and holc are matching")
+} else {
+  print("CRS DOES NOT MATCH")
+}
+
+# Join birds and holc data
+birds_holc <- st_join(birds, holc, join = st_within) # Using st_within because the birds are points, so they cannot be partially in/out of HOLC geometries
+
+# Get counts of bird observations per HOLC grade
+bird_grades <- birds_holc %>% 
+  st_drop_geometry() %>% #Drop geometries
+  filter(!is.na(grade)) %>% # Drop NAs because there are so many it will get in the way of visualizing our analysis
+  count(grade, name = "count_grade") %>% # Return count by grade, rename this 'count'
+  mutate(percentage = (count_grade / sum(count_grade)) * 100)
+
+
+fig4 <- ggplot(bird_grades, aes(x = grade, y = percentage)) +
+  geom_bar(stat = 'identity', fill = "#FA8072") +
+  labs(title = "Percentage of Bird Observations by HOLC Grade",
+       x = "HOLC Grade",
+       y = "Percentage of Bird Observations",
+       caption = "Fig. 4") +
+  theme_clean()  +
+  theme(plot.caption = element_text(hjust = 0)) #Position caption on left
+  
+fig4
 ```
+
+
+## References
+
+https://19january2017snapshot.epa.gov/ejscreen/overview-demographic-indicators-ejscreen_.html
+
 
