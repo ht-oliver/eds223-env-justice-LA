@@ -112,7 +112,7 @@ low_income <- joined %>%
   
 plot1 <- ggplot(low_income, aes(x = grade, y = low_inc_mean)) +
   geom_bar(stat = 'identity', fill = '#CE5425') + #stat = 'identity' tells ggplot that the y values are actual data values, not just counts
-  labs(title = "% Low Income",
+  labs(title = "Low Income",
        x = "HOLC Grade",
        y = "Mean Percentile Low Income",
        caption = "Fig. 1") +
@@ -126,7 +126,7 @@ pct_pm25 <- joined %>%
 
 plot2 <- ggplot(pct_pm25, aes(x = grade, y = pm25)) +
   geom_bar(stat = 'identity', fill = '#5E899E') +
-  labs(title = "% PM25", x = "HOLC Grade",
+  labs(title = "PM25", x = "HOLC Grade",
        y = "Mean Percentile PM25",
        caption = "Fig. 2") +
   theme_clean() +
@@ -139,15 +139,19 @@ life_exp <- joined %>%
 
 plot3 <- ggplot(life_exp, aes(x = grade, y = lle)) +
   geom_bar(stat = 'identity', fill = '#4b7a47') +
-  labs(title = "% Low Life Expectancy", x = "HOLC Grade",
+  labs(title = "Low Life Expectancy", x = "HOLC Grade",
        y = "Mean Percentile Low Life Expectancy",
        caption = "Fig. 3") +
   theme_clean() +
   theme(plot.caption = element_text(hjust = 0))
 
 
-annotate_figure(ggarrange(plot1, plot2, plot3, ncol = 3, nrow = 1),
-          top = text_grob('Environmental Justice by HOLC Grades, 2021-2023'))
+annotate_figure( # Create caption-able object
+  ggarrange(plot1, plot2, plot3, # Combine plots
+                          ncol =3, nrow = 1, # Specify shape
+                          widths = c(1, 1, 1.2)), # Specify individual widths
+                          # Caption top
+          top = text_grob('Environmental Justice by HOLC Grades, 2021-2023')) 
 
 
 
