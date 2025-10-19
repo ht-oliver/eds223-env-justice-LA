@@ -8,12 +8,18 @@ message: FALSE
 
 #### Background
 
-Present-day environmental justice may reflect legacies of injustice in the past. The United States has a long history of racial segregation which is still visible. During the 1930’s the Home Owners’ Loan Corporation (HOLC), as part of the New Deal, rated neighborhoods based on their perceived safety for real estate investment. Their ranking system, (A (green), B (blue), C (yellow), D (red)) was then used to block access to loans for home ownership. Colloquially known as “redlining”, this practice has had widely-documented consequences not only for community wealth, but also health (1). Redlined neighborhoods have less greenery (2) and are hotter than other neighborhoods (3).
+Present-day environmental justice may reflect legacies of injustice in the past. The United States has a long history of racial segregation which is still visible. During the 1930’s the Home Owners’ Loan Corporation (HOLC), as part of the New Deal, rated neighborhoods based on their perceived safety for real estate investment. Their ranking system, (A (green), B (blue), C (yellow), D (red)) was then used to block access to loans for home ownership. Colloquially known as “redlining”, this practice has had widely-documented consequences not only for community wealth, but also health<sup>1</sup>. Redlined neighborhoods have less greenery<sup>2</sup> and are hotter than other neighborhoods<sup>3</sup>.
 
-A recent study found that redlining has not only affected the environments communities are exposed to, it has also shaped our observations of biodiversity.4 Community or citizen science, whereby individuals share observations of species, is generating an enormous volume of data. Ellis-Soto and co-authors found that redlined neighborhoods remain the most undersampled areas across 195 US cities. This gap is highly concerning, because conservation decisions are made based on these data.
+A recent study found that redlining has not only affected the environments communities are exposed to, it has also shaped our observations of biodiversity<sup>4</sup>. Community or citizen science, whereby individuals share observations of species, is generating an enormous volume of data. Ellis-Soto and co-authors found that redlined neighborhoods remain the most undersampled areas across 195 US cities. This gap is highly concerning, because conservation decisions are made based on these data.
 
+###### *(Background provided by Ruth Oliver, published here: https://eds-223-geospatial.github.io/assignments/HW2.html#fn1)*
 
-## 1) Prepare environment
+#### Purpose
+
+The purpose of this analysis is to test the hypothesis that historic redlining practices have a lingering effect on environmental justice today in LA County.
+
+## 1) Prepare Environment
+
 ```{r}
 # Load library
 library(tidyverse)
@@ -30,7 +36,8 @@ library(ggthemes)
 
 # Read in data
 # EJScreen - Census
-ejscreen <- st_read(here::here('data/ejscreen/EJSCREEN_2023_BG_StatePct_with_AS_CNMI_GU_VI.gdb')) %>% 
+ejscreen <- st_read(here::here('data/ejscreen/EJSCREEN_2023_BG_StatePct_with_AS_CNMI_GU_VI.gdb'),
+  quiet = TRUE) %>% # Suppress CRS message
   clean_names() %>% 
   # Filter to LA County
   filter((st_abbrev == 'CA') & (cnty_name == 'Los Angeles County')) %>%
@@ -38,43 +45,54 @@ ejscreen <- st_read(here::here('data/ejscreen/EJSCREEN_2023_BG_StatePct_with_AS_
 st_abbrev, cnty_name, region, acstotpop, lowincome, p_pm25, p_lifeexppct, p_lowincpct)
   
 # HOLC Redlining
-holc <- st_read(here::here('data/mapping-inequality/mapping-inequality-los-angeles.json')) %>% 
+holc <- st_read(here::here('data/mapping-inequality/mapping-inequality-los-angeles.json'),
+  quiet=TRUE) %>% 
   st_transform(crs = st_crs(ejscreen)) %>% # Transform CRS
   clean_names()
   
 # Biodiversity observations
-birds <- st_read(here::here('data/gbif-birds-LA')) %>% 
+birds <- st_read(here::here('data/gbif-birds-LA'),
+  quiet = TRUE) %>% 
   st_transform(crs = st_crs(ejscreen)) %>%  # Transform CRS
   clean_names()
 
   
 ```
 
-
 ## 2) Historical Redlining Neighborhoods Map
+
 ```{r}
+# Create redling district map
 map1 <-
+  # Provide OpenStreet Basemap
   tm_basemap(server = "https://tile.openstreetmap.org/{z}/{x}/{y}.png", alpha = 0.7) +
-  tm_shape(holc) +
+  tm_shape(holc) +  # Project HOLC data
     tm_polygons(fill = 'grade',
                 palette = c(
-                  "A" = "lightgreen",
+                  "A" = "lightgreen", # Define color palette
                   "B" = "lightblue",
                   "C" = "#FFFF66",
                   "D" = "#FA2A55")) +
-  tm_title(text = "HOLC Grades in LA County",
-            frame = FALSE) +
-  tm_scale_bar(position = c(0,0.1)) +
-  tm_compass()
+  tm_title(text = "HOLC Grades in LA County", # Add title
+            frame = FALSE) + # Remove frame
+  tm_scale_bar(position = c(0,0.1)) + # Add scalebar
+  tm_compass() # Add compass rose
 
 map1
   
 
 ```
 
-3) HOLC Grade Summary Table
+## 3) HOLC Grade Summary Table
 
 ```{r}
+# Confirm CRS matches. Print message
+if (st_crs(holc) == st_crs(ejscreen)) {
+  print("CRS for ejscreen and holc are matching")
+} else {
+  print("CRS DOES NOT MATCH")
+}
+
 # Join ejscreen and holc by Shape (ejscreen) and geometry (holc)
 joined = st_join(ejscreen, holc) %>%
   st_drop_geometry()
@@ -86,22 +104,25 @@ pct_C <- (sum(joined$grade == 'C', na.rm = TRUE) / nrow(joined)) * 100
 pct_D <- (sum(joined$grade == 'D', na.rm = TRUE) / nrow(joined)) * 100
 pct_na <- (sum(is.na(joined$grade)) / nrow(joined)) * 100
 
+# Summarize counts, grouped by grade
 counts <- joined %>% 
   group_by(grade) %>% 
   summarize(tbl_counts = sum(lowincome))
 
+# Create a dataframe of counts and percentages
 pct_df <- data.frame(grade = c('A', 'B', 'C', 'D', 'No Grade'),
                      count = counts$tbl_counts,
                      percentage = c(pct_A, pct_B, pct_C, pct_D, pct_na))
 
-pct_table <- kable(pct_df, col.names = c("Grade", "Count", "Percentage"), caption = "HOLC Grade Percentages in LA County")
+# Turn dataframe into a kable table
+pct_table <- kable(pct_df,
+                   col.names = c("Grade", "Count", "Percentage"),
+                   caption = "HOLC Grade Percentages in LA County")
 
 pct_table
 ```
 
-
-
-4) Summary of low income, air quality, and low life expectancy by HOLC Grade
+## 4) Summary of low income, air quality, and low life expectancy by HOLC Grade
 
 ```{r}
 # Low income housing
@@ -149,7 +170,7 @@ plot3 <- ggplot(life_exp, aes(x = grade, y = lle)) +
 annotate_figure( # Create caption-able object
   ggarrange(plot1, plot2, plot3, # Combine plots
                           ncol =3, nrow = 1, # Specify shape
-                          widths = c(1, 1, 1.2)), # Specify individual widths
+                          widths = c(1, 1, 1.1)), # Specify individual widths
                           # Caption top
           top = text_grob('Environmental Justice by HOLC Grades, 2021-2023')) 
 
@@ -159,12 +180,10 @@ annotate_figure( # Create caption-able object
 
 ## 5) Interpretation
 
-  The figures above display analysis for three key metrics of quality of life as they correspond to redlining districts in LA County. Fig. 1 displays the mean percentile of low income homes found in each LA County census block. "Low income" is defined to be homes which have income equal to or less than twice the federal poverty level (USEPA). Fig. 2 displays the mean percentile of homes per census block that were found to have airborne particles of size 2.5 micrometers or smaller (PM25), a direct indicator of air quality. Fig. 3 displays the mean percentile of individuals with lower than average national life expectancy per census block. For all three metrics, we see that lower HOLC grades ('A' being the highest, and 'D' being the lowest) are associated with higher poverty, higher air pollution, and higher mortality. This pattern supports the argument that when the Home Owners' Loan Corporation (HOLC) classified neighborhoods by investment risk in the 1930s, it effectively established a housing value hierarchy -- boosting property values in higher quality-of-life areas while devaluing those in lower quality-of-life, often low-income, communities. The fact that these patterns are easily visible nearly a century after redlining took place shows the long-lasting and still-present impact of classist policies in the early 20th century.
-
+The figures above display analysis for three key metrics of quality of life as they correspond to redlining districts in LA County. Fig. 1 displays the mean percentile of low income homes found in each LA County census block. "Low income" is defined to be homes which have income equal to or less than twice the federal poverty level<sup>5</sup>. Fig. 2 displays the mean percentile of homes per census block that were found to have airborne particles of size 2.5 micrometers or smaller (PM25), a direct indicator of air quality. Fig. 3 displays the mean percentile of individuals with lower than average national life expectancy per census block<sup>5</sup>. For all three metrics, we see that lower HOLC grades ('A' being the highest, and 'D' being the lowest) are associated with higher poverty, higher air pollution, and higher mortality. This pattern supports the argument that when the Home Owners' Loan Corporation (HOLC) classified neighborhoods by investment risk in the 1930s, it effectively established a housing value hierarchy -- boosting property values in higher quality-of-life areas while devaluing those in lower quality-of-life, often low-income, communities. The fact that these patterns are easily visible nearly a century after redlining took place shows the long-lasting and still-present impact of classist policies in the early 20th century.
 
 ## 6) Biodiversity and Redlining
 
-1) Create a figure summarizing the percent of observations within redlined neighborhood within each HOLC grade.
 ```{r}
 # Check geometry type for birds
 print(paste("Geometry type for birds is", unique(st_geometry_type(birds))))
@@ -199,9 +218,18 @@ fig4 <- ggplot(bird_grades, aes(x = grade, y = percentage)) +
 fig4
 ```
 
+## 7) Interpretation
+
+Ellis-Soto et. al's 2023 paper found that so-called 'desireable' areas (redline districts with higher grades) were found to have more than twice the density of bird observations as lower-graded areas<sup>4</sup>. The results in Fig. 4 do not provide evidence of the same conclusion. Rather, Fig. 4 shows that bird observations are highest in 'C' Holt Districts, nearly identical in 'A' and 'D' districts, and lowest in 'B' districts. The abstract of Ellis-Soto et. al's paper states that in their study they accounted for differences in vegetation, open space, population density, and climate of studied areas<sup>4</sup>. The analysis in this document did not account for these factors, which could be the reason our results reach such different conclusions. Based on the results in this analysis, there is no significant correlation between redlining districts and bird observations from 2021-2023.
 
 ## References
 
-https://19january2017snapshot.epa.gov/ejscreen/overview-demographic-indicators-ejscreen_.html
+<sup>1</sup> Gee, G. C. (2008). A multilevel analysis of the relationship between institutional and individual racial discrimination and health status. American journal of public health, 98(Supplement_1), S48-S56.
 
+<sup>2</sup> Nardone, A., Rudolph, K. E., Morello-Frosch, R., & Casey, J. A. (2021). Redlines and greenspace: the relationship between historical redlining and 2010 greenspace across the United States. Environmental health perspectives, 129(1), 017006.
 
+<sup>3</sup> Hoffman, J. S., Shandas, V., & Pendleton, N. (2020). The effects of historical housing policies on resident exposure to intra-urban heat: a study of 108 US urban areas. Climate, 8(1), 12.
+
+<sup>4</sup> Ellis-Soto, D., Chapman, M., & Locke, D. H. (2023). Historical redlining is associated with increasing geographical disparities in bird biodiversity sampling in the United States. Nature Human Behaviour, 1-9.
+
+<sup>5</sup> U.S. Environmental Protection Agency. Overview of Demographic Indicators in EJSCREEN. Retrieved October 18, 2025, from https://19january2017snapshot.epa.gov/ejscreen/overview-demographic-indicators-ejscreen\_.html
