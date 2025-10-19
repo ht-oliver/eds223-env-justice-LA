@@ -15,9 +15,10 @@ A recent study found that redlining has not only affected the environments commu
 #### Contents
 
 ```
-EDS223-HW2
-├── data - #empty in repository See Data Access for necessary downloads
-├── eds223-env-justice-LA.Rproj
+├── data #Folder not present in repository. Must be created, and populated with raw data
+         # See Data Access section for further details
+├── docs
+│   └── HW2.qmd
 ├── HW2_files
 │   ├── figure-html
 │   │   ├── unnamed-chunk-2-1.png
@@ -38,8 +39,7 @@ EDS223-HW2
 │           ├── quarto.js
 │           ├── tippy.css
 │           └── tippy.umd.min.js
-├── HW2.html
-├── HW2.qmd
+├── eds223-env-justice-LA.Rproj
 └── README.md
 ```
 
@@ -84,6 +84,10 @@ install.packages(c(
   "spData", "janitor", "knitr", "ggpubr", "ggthemes"
 ))
 ```
+
+#### Instructions for producing analysis
+
+Locate the `HW2.qmd` file within the `docs` folder in the repository. After installing the necessary packages in R, open `HW2.qmd` and click on the 'Render' button.
 
 #### Authors
 
